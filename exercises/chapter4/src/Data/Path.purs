@@ -1,5 +1,10 @@
 module Data.Path
   ( Path()
+  , allFiles
+  , allFiles'
+  , onlyFiles
+  , maxFile
+  , minFile
   , root
   , ls
   , filename
@@ -8,7 +13,8 @@ module Data.Path
   ) where
 
 import Prelude
-
+import Data.Array ((:), concatMap, filter)
+import Data.Foldable (foldr)
 import Data.Maybe (Maybe(..))
 
 data Path
@@ -59,3 +65,28 @@ ls _ = []
 size :: Path -> Maybe Int
 size (File _ bytes) = Just bytes
 size _ = Nothing
+
+allFiles :: Path -> Array Path
+allFiles file = file : concatMap allFiles (ls file)
+
+allFiles' :: Path -> Array Path
+allFiles' file = file : do
+  child <- ls file
+  allFiles' child
+
+onlyFiles :: Path -> Array Path
+onlyFiles = (filter $ not isDirectory) <<< allFiles
+
+compareSize :: (Int -> Int -> Boolean) -> Path -> Path -> Path
+compareSize f a b =
+  case [size a, size b] of
+    [Just a', Just b'] -> if a' `f` b' then a else b
+    [Just a', Nothing] -> a
+    [Nothing, Just b'] -> b
+    _ -> a
+
+maxFile :: Path -> Path
+maxFile ps = foldr (compareSize (>)) ps (allFiles ps)
+
+minFile :: Path -> Path
+minFile ps = foldr (compareSize (<)) ps (allFiles ps)

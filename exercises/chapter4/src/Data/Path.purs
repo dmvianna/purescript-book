@@ -5,6 +5,7 @@ module Data.Path
   , onlyFiles
   , maxFile
   , minFile
+  , whereIs
   , root
   , ls
   , filename
@@ -13,9 +14,12 @@ module Data.Path
   ) where
 
 import Prelude
+import Control.MonadZero (guard)
 import Data.Array ((:), concatMap, filter)
 import Data.Foldable (foldr)
 import Data.Maybe (Maybe(..))
+import Data.Maybe.First (First(..))
+import Data.Monoid ((<>), mempty)
 
 data Path
   = Directory String (Array Path)
@@ -90,3 +94,24 @@ maxFile ps = foldr (compareSize (>)) ps (allFiles ps)
 
 minFile :: Path -> Path
 minFile ps = foldr (compareSize (<)) ps (allFiles ps)
+
+matchFile :: String -> Path -> First Path
+matchFile s p@(File ps _) =
+  if s == ps
+  then First $ Just p
+  else First Nothing
+matchFile _ _ = First Nothing
+
+--whereIs :: String -> Maybe Path
+whereIs target = do
+  fms <- do
+    d <- do
+      fs <- allFiles root
+      guard $ isDirectory fs
+      pure fs
+    p <- ls d
+    pure $ matchFile target p
+  First m <- foldr (<>) mempty fms
+  case m of
+    Just d -> Just d
+    Nothing -> Nothing

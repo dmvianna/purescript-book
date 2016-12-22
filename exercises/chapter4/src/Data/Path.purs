@@ -14,12 +14,11 @@ module Data.Path
   ) where
 
 import Prelude
-import Control.MonadZero (guard)
 import Data.Array ((:), concatMap, filter)
 import Data.Foldable (foldr)
 import Data.Maybe (Maybe(..))
 import Data.Maybe.First (First(..))
-import Data.Monoid ((<>), mempty)
+import Data.Monoid (mempty)
 
 data Path
   = Directory String (Array Path)
@@ -102,16 +101,14 @@ matchFile s p@(File ps _) =
   else First Nothing
 matchFile _ _ = First Nothing
 
---whereIs :: String -> Maybe Path
-whereIs target = do
-  fms <- do
-    d <- do
-      fs <- allFiles root
-      guard $ isDirectory fs
-      pure fs
-    p <- ls d
-    pure $ matchFile target p
-  First m <- foldr (<>) mempty fms
-  case m of
-    Just d -> Just d
-    Nothing -> Nothing
+whereIs' :: String -> Array (First Path)
+whereIs' target = do
+  m <- do
+    d <- filter isDirectory $ allFiles root
+    pure $ foldr (<>) mempty $ map (matchFile target) $ ls d
+  pure m
+
+whereIs :: String -> Maybe Path
+whereIs target =
+  case foldr (<>) mempty $ whereIs' target of
+    First m -> m
